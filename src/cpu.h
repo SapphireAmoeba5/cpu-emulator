@@ -18,3 +18,4 @@ void cpu_read(CPU* cpu, void* dest, size_t address, size_t size);
 
 uint8_t* cpu_raw_memory(CPU* cpu);
 void dump_cpu_memory(CPU* cpu, const char* filename);
+void print_registers(CPU* cpu);

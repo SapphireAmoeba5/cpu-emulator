@@ -5,8 +5,7 @@
 #include <string.h>
 #include "cpu.h"
 #include "debug.h"
-#include "instructions.h"
-
+#include "types.h"
 
 int main(void) {
     DEBUG_PRINT("Running a debug build\n");
@@ -23,29 +22,30 @@ int main(void) {
 
     uint8_t* memory = cpu_raw_memory(cpu);
 
-    //memory[0x1000] = 0x02;
-    //memory[0x1001] = 0b11000001;
+    u8 program[] = {0x02, 0b11000001, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x14, 0b11010010,
+                    0x14, 0b11011011,
+                    0x34, 0b11000011,
+                    0x41, 0b00000011, 0b00001010, 0b00000000, 0x00, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                    0x03, 0b11010000, 0x01, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                    0x05, 0b00000000, 0x00000000, 0x10, 0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
-    //uint64_t data = 100;
-    //cpu_write(cpu, &data, 0x1002, 8);
+    cpu_write(cpu, program, 0x1000, sizeof(program));
 
-    //memory[0x100A] = 0x21;
-    //memory[0x100B] = 0b00000001;
+   // srand((unsigned)time(0));
 
-    //memory[0x100C] = 0x31;
-    //memory[0x100D] = 0b00000010;
+   // for(int i = 0x1000; i < 1024 * 1024; i++) {
+   //     memory[i] = rand() % 256;
+   // }
 
-    srand((unsigned)time(0));
-
-    for(int i = 0x1000; i < 1024 * 1024; i++) {
-        memory[i] = rand() % 256;
-    }
-
-
-    while(is_halted(cpu) == false) {
+    int times = 0;
+    while(times < 10 && is_halted(cpu) == false) {
         cpu_clock(cpu);
         DEBUG_EXECUTE(printf("\n"));
+        times++;
     }
+
+    dump_cpu_memory(cpu, "mem_dump.bin");
 
     destroy_cpu(cpu);
 }
