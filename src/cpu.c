@@ -17,6 +17,7 @@ u32 fetch_dword(CPU* cpu);
 u64 fetch_qword(CPU* cpu);
 
 // XXX refers to an invalid instruction opcode
+
 void XXX(CPU* cpu);
 
 void HLT(CPU* cpu);
@@ -46,6 +47,18 @@ void LEA(CPU* cpu);
 void JMP(CPU* cpu);
 void JZ(CPU* cpu);
 void JNZ(CPU* cpu);
+void JO(CPU* cpu);
+void JNO(CPU* cpu);
+void JS(CPU* cpu);
+void JNS(CPU* cpu);
+void JC(CPU* cpu);
+void JNC(CPU* cpu);
+void JBE(CPU* cpu);
+void JA(CPU* cpu);
+void JL(CPU* cpu);
+void JGE(CPU* cpu);
+void JLE(CPU* cpu);
+void JG(CPU* cpu);
 
 void NOP(CPU* cpu);
 
@@ -59,18 +72,18 @@ static instruction instruction_lookup[256] = {
    /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"PLC", PLC}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 5 */ {"XXX", XXX}, {"LDR", LDR}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 6 */ {"XXX", XXX}, {"LEA", LEA}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 7 */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 8 */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 9 */ {"NOP", NOP}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* A */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* B */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* C */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* D */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* E */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"JO", JO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"JNO", JNO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 5 */ {"XXX", XXX}, {"LDR", LDR}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JS", JS}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 6 */ {"XXX", XXX}, {"LEA", LEA}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JNS", JNS}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 7 */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JC", JC}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 8 */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JNC", JNC}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 9 */ {"NOP", NOP}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JBE", JBE}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* A */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JA", JA}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* B */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JL", JL}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* C */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JGE", JGE}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* D */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JLE", JLE}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* E */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JG", JG}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* F */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}
 };
 
@@ -87,10 +100,11 @@ typedef struct impl_cpu {
     u64 ip; /* Instruction pointer */
 
     /* CPU flags */
-    u8 flag_negative: 1;
-    u8 flag_overflow: 1;
-    u8 flag_zero: 1;
-    u8 flag_carry: 1;
+    // These are not bitfields because I do not care about saving memory in this case
+    u8 flag_negative;
+    u8 flag_overflow;
+    u8 flag_zero;
+    u8 flag_carry;
 } CPU;
 
 CPU* create_cpu(size_t memory_size) {
@@ -242,16 +256,34 @@ void print_registers(CPU* cpu) {
 
 }
 
+void get_cpu_state(CPU* cpu, cpu_state* state) {
+    state->memory_size = cpu->memory_size;
+    state->memory = cpu->memory;
+
+    state->x0 = cpu->x0;
+    state->x1 = cpu->x1;
+    state->x2 = cpu->x2;
+    state->x3 = cpu->x3;
+    state->x4 = cpu->x4;
+
+    state->ip = cpu->ip;
+    state->sp = cpu->sp;
+
+    state->flag_negative = cpu->flag_negative;
+    state->flag_carry = cpu->flag_carry;
+    state->flag_zero = cpu->flag_zero;
+    state->flag_overflow = cpu->flag_overflow;
+}
+
 // Get a pointer to the register ID specified by reg_index. If reg_index is an invalid register ID this functions returns NULL.
 // Note that a reg_index of 0 is valid depending on certain instructions and can simply mean no register is supplied.
 u64* get_reg_ptr(CPU* cpu, u8 reg_id) {
     DEBUG_PRINT("Reg ID of %d\n", reg_id);
 
-    // Registers are encoded in 3 bits. This allows for 8 registers, but only 7 can be used because all bits set to 0 means no register is supplied which can be a valid register
-    // This code should not be executable under proper circumstances but its worth to check.
     if(reg_id > 0b111) {
-        DEBUG_PRINT("Register ID is too large\n");
-        return NULL;
+        // This code should not be executed. If it is then there in an internal error.
+        printf("Internal runtime error. reg_id is larger than 7, but this should never be the case. Exiting\n");
+        exit(1);
     }
 
     if(reg_id == 0) {
@@ -269,8 +301,8 @@ u64* get_reg_ptr(CPU* cpu, u8 reg_id) {
         case 7: return &cpu->ip;
     }
 
-    DEBUG_PRINT("Unknown error when getting register pointer\n");
-    return NULL;
+    DEBUG_PRINT("Unknown error when getting register pointer. Exiting\n");
+    exit(1);
 }
 
 const char* get_reg_name_from_ptr(CPU* cpu, u64* reg_ptr) {
@@ -352,7 +384,7 @@ size_t get_effective_address(CPU* cpu, u8* size) {
 
     *size = 1 << ((fetched >> 6) & 0b11);
 
-    size_t address = base_value + index_value + const_offset;
+    size_t address = (base_value + index_value + const_offset) * multiplier;
     DEBUG_PRINT("Parsed address %#zx (%zu)\n", address, address);
     return address;
 }
@@ -866,6 +898,126 @@ void JNZ(CPU* cpu) {
     size_t address = get_effective_address(cpu, &size);
 
     if(cpu->flag_zero == 0) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JO(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_overflow == 1) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JNO(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_overflow == 0) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JS(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_negative == 1) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JNS(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_negative == 0) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JC(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_carry == 1) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JNC(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_carry == 0) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JBE(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_carry == 1 || cpu->flag_zero == 1) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JA(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_carry == 0 && cpu->flag_zero == 0) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JL(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_negative != cpu->flag_overflow) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JGE(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_negative == cpu->flag_overflow) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JLE(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_zero == 1 || cpu->flag_negative != cpu->flag_overflow) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JG(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_zero == 0 && cpu->flag_negative == cpu->flag_overflow) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
