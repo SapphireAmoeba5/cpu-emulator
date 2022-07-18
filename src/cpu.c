@@ -44,6 +44,8 @@ void LDR(CPU* cpu);
 void LEA(CPU* cpu);
 
 void JMP(CPU* cpu);
+void JZ(CPU* cpu);
+void JNZ(CPU* cpu);
 
 void NOP(CPU* cpu);
 
@@ -55,8 +57,8 @@ typedef struct {
 static instruction instruction_lookup[256] = {
    //           0             1             2             3             4             5             6             7             8             9             A             B             C             D             E             F
    /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"PLC", PLC}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 5 */ {"XXX", XXX}, {"LDR", LDR}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
@@ -847,6 +849,26 @@ void JMP(CPU* cpu) {
     size_t address = get_effective_address(cpu, &size);
 
     cpu->ip = address;
+}
+
+void JZ(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_zero == 1) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
+}
+
+void JNZ(CPU* cpu) {
+    u8 size;
+    size_t address = get_effective_address(cpu, &size);
+
+    if(cpu->flag_zero == 0) {
+        DEBUG_PRINT("Jumping to address %#zx\n", address);
+        cpu->ip = address;
+    }
 }
 
 void NOP(CPU* cpu) {
