@@ -100,7 +100,6 @@ typedef struct impl_cpu {
     u64 ip; /* Instruction pointer */
 
     /* CPU flags */
-    // These are not bitfields because I do not care about saving memory in this case
     u8 flag_negative;
     u8 flag_overflow;
     u8 flag_zero;
@@ -259,6 +258,8 @@ void print_registers(CPU* cpu) {
 void get_cpu_state(CPU* cpu, cpu_state* state) {
     state->memory_size = cpu->memory_size;
     state->memory = cpu->memory;
+
+    cpu->halted = cpu->halted;
 
     state->x0 = cpu->x0;
     state->x1 = cpu->x1;
@@ -449,12 +450,21 @@ void MOV(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(src_ptr == NULL || dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid register ID for MOV %d and/or %d\n", src_id, dst_id);
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid DST register\n");
         trigger_exception(cpu);
     }
 
-    write_value_to_register(cpu, dst_ptr, *src_ptr, size);
+    u64 move_value;
+    if(src_ptr == NULL) {
+        fetch_sized(cpu, size);
+        move_value = cpu->fetched;
+    }
+    else {
+        move_value = *src_ptr;
+    }
+
+    write_value_to_register(cpu, dst_ptr, move_value, size);
 }
 
 void PLC(CPU* cpu) {
