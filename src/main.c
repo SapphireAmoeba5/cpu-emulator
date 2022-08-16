@@ -72,10 +72,13 @@ int main(int argc, char** argv) {
     cpu_reset(cpu);
 
     DEBUG_EXECUTE(printf("\n"));
+
     while(is_halted(cpu) == false) {
         cpu_clock(cpu);
-        DEBUG_EXECUTE(printf("\n"));
-    }
 
+        if(is_halted(cpu) == false) {
+            DEBUG_EXECUTE(printf("\n"));
+        }
+    }
     destroy_cpu(cpu);
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -35,6 +36,7 @@ void cpu_write(CPU* cpu, void* data, size_t address, size_t size);
 void cpu_read(CPU* cpu, void* dest, size_t address, size_t size);
 
 uint8_t* cpu_raw_memory(CPU* cpu);
-void dump_cpu_memory(CPU* cpu, const char* filename);
 void print_registers(CPU* cpu);
 void get_cpu_state(CPU* cpu, cpu_state* state);
+
+void dump_cpu_memory(CPU* cpu, const char* filepath);

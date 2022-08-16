@@ -59,6 +59,8 @@ void JL(CPU* cpu);
 void JGE(CPU* cpu);
 void JLE(CPU* cpu);
 void JG(CPU* cpu);
+void CALL(CPU* cpu);
+void RET(CPU* cpu);
 
 void NOP(CPU* cpu);
 
@@ -69,8 +71,8 @@ typedef struct {
 
 static instruction instruction_lookup[256] = {
    //           0             1             2             3             4             5             6             7             8             9             A             B             C             D             E             F
-   /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"PLC", PLC}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"XXX", XXX}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"CALL", CALL}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"RET", RET}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"JO", JO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"JNO", JNO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
@@ -123,6 +125,7 @@ void destroy_cpu(CPU* cpu) {
     free(cpu);
 }
 
+// Reset the CPU to a known state. The CPU reads 8 bytes from address 0x0 and starts executing at that address, and reads 8 bytes from 0x8 and sets the stack pointer to that value
 void cpu_reset(CPU* cpu) {
     DEBUG_PRINT("Resetting cpu(%p)\n", cpu);
 
@@ -169,12 +172,6 @@ u8* cpu_raw_memory(CPU* cpu) {
     return cpu->memory;
 }
 
-void dump_cpu_memory(CPU* cpu, const char* filename) {
-    FILE* file = fopen(filename, "wb");
-    fwrite(cpu->memory, 1, cpu->memory_size, file);
-    fclose(file);
-}
-
 bool is_halted(CPU* cpu) {
     return cpu->halted;
 }
@@ -186,6 +183,12 @@ u8 fetch_byte(CPU* cpu) {
     cpu->fetched = byte;
     cpu->ip++;
     return byte;
+}
+
+void dump_cpu_memory(CPU* cpu, const char* filepath) {
+    FILE* file = fopen(filepath, "wb");
+    fwrite(cpu->memory, 1, cpu->memory_size, file);
+    fclose(file);
 }
 
 // Fetch a word (2 bytes) at the address of the instruction pointer
@@ -347,8 +350,8 @@ const char* get_reg_name(u8 reg_id) {
 }
 
 // Parses bytes following the instruction pointer and calculates an effective address from them.
-// All instructions that support addressing (I.E Not Push, or Pop) use the same encoding format.
-size_t get_effective_address(CPU* cpu, u8* size) {
+// All instructions that support addressing use the same encoding format.
+size_t get_effective_address(CPU* cpu) {
     DEBUG_PRINT("Parsing memory address\n");
 
     fetch_byte(cpu);
@@ -364,8 +367,8 @@ size_t get_effective_address(CPU* cpu, u8* size) {
     u64* base_ptr = get_reg_ptr(cpu, base_id);
     u64* index_ptr = get_reg_ptr(cpu, index_id);
 
-    // These need to be here in case one one of the offset registers is the instruction pointer
-    u64 fetched = fetch_byte(cpu);
+    // We must fetch all values we need for the future here in case one of the index registers is the instruction pointer.
+    // The reason for this is to always have the instruction pointer point to the first byte of the next instruction when we calculate the actual address instead of some abritary point in the middle of the instruction.
     u64 const_offset = fetch_qword(cpu);
 
     if(base_ptr != NULL) {
@@ -381,9 +384,6 @@ size_t get_effective_address(CPU* cpu, u8* size) {
     else {
         index_value = 0;
     }
-
-
-    *size = 1 << ((fetched >> 6) & 0b11);
 
     size_t address = (base_value + index_value + const_offset) * multiplier;
     DEBUG_PRINT("Parsed address %#zx (%zu)\n", address, address);
@@ -465,23 +465,6 @@ void MOV(CPU* cpu) {
     }
 
     write_value_to_register(cpu, dst_ptr, move_value, size);
-}
-
-void PLC(CPU* cpu) {
-    fetch_byte(cpu);
-
-    u8 dst_id = cpu->fetched & 0b111;
-    u8 size = 1 << ((cpu->fetched >> 6) & 0b11);
-    u64* dst_ptr = get_reg_ptr(cpu, dst_id);
-
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid register ID for PLC %d\n", dst_id);
-        trigger_exception(cpu);
-    }
-
-    fetch_sized(cpu, size);
-
-    write_value_to_register(cpu, dst_ptr, cpu->fetched, size);
 }
 
 // Adds src and dst reg and then puts the result in the dst register
@@ -841,15 +824,13 @@ void STR(CPU* cpu) {
     fetch_byte(cpu);
 
     u64* src_ptr = get_reg_ptr(cpu, cpu->fetched & 0b111);
+    u8 size = 1 << (cpu->fetched >> 6 & 0b11);
     if(src_ptr == NULL) {
         DEBUG_PRINT("Invalid SRC register\n");
         trigger_exception(cpu);
     }
 
-    u8 size;
-    u64 effective_address = get_effective_address(cpu, &size);
-
-    // TODO: Make this endian-independent
+    u64 effective_address = get_effective_address(cpu);
     cpu_write(cpu, src_ptr, effective_address, size);
 }
 
@@ -857,13 +838,14 @@ void LDR(CPU* cpu) {
     fetch_byte(cpu);
 
     u64* dst_ptr = get_reg_ptr(cpu, cpu->fetched & 0b111);
+    u8 size = 1 << (cpu->fetched >> 6 & 0b11);
+
     if(dst_ptr == NULL) {
         DEBUG_PRINT("Invalid DST register\n");
         trigger_exception(cpu);
     }
 
-    u8 size;
-    u64 effective_address = get_effective_address(cpu, &size);
+    u64 effective_address = get_effective_address(cpu);
 
     u64 derefrenced = 0;
     cpu_read(cpu, &derefrenced, effective_address, size);
@@ -875,27 +857,24 @@ void LEA(CPU* cpu) {
     fetch_byte(cpu);
 
     u64* dst_ptr = get_reg_ptr(cpu, cpu->fetched & 0b111);
+    u8 size = 1 << (cpu->fetched >> 6 & 0b11);
     if(dst_ptr == NULL) {
         DEBUG_PRINT("Invalid DST register\n");
         trigger_exception(cpu);
     }
 
-    u8 size; /* Not used */
-    u64 effective_address = get_effective_address(cpu, &size);
-
-    *dst_ptr = effective_address;
+    u64 effective_address = get_effective_address(cpu);
+    write_value_to_register(cpu, dst_ptr, effective_address, size);
 }
 
 void JMP(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     cpu->ip = address;
 }
 
 void JZ(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_zero == 1) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -904,8 +883,7 @@ void JZ(CPU* cpu) {
 }
 
 void JNZ(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_zero == 0) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -914,8 +892,7 @@ void JNZ(CPU* cpu) {
 }
 
 void JO(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_overflow == 1) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -924,8 +901,7 @@ void JO(CPU* cpu) {
 }
 
 void JNO(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_overflow == 0) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -934,8 +910,7 @@ void JNO(CPU* cpu) {
 }
 
 void JS(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_negative == 1) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -944,8 +919,7 @@ void JS(CPU* cpu) {
 }
 
 void JNS(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_negative == 0) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -954,8 +928,7 @@ void JNS(CPU* cpu) {
 }
 
 void JC(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_carry == 1) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -964,8 +937,7 @@ void JC(CPU* cpu) {
 }
 
 void JNC(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_carry == 0) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -974,8 +946,7 @@ void JNC(CPU* cpu) {
 }
 
 void JBE(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_carry == 1 || cpu->flag_zero == 1) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -984,8 +955,7 @@ void JBE(CPU* cpu) {
 }
 
 void JA(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_carry == 0 && cpu->flag_zero == 0) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -994,8 +964,7 @@ void JA(CPU* cpu) {
 }
 
 void JL(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_negative != cpu->flag_overflow) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -1004,8 +973,7 @@ void JL(CPU* cpu) {
 }
 
 void JGE(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_negative == cpu->flag_overflow) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -1014,8 +982,7 @@ void JGE(CPU* cpu) {
 }
 
 void JLE(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_zero == 1 || cpu->flag_negative != cpu->flag_overflow) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
@@ -1024,13 +991,28 @@ void JLE(CPU* cpu) {
 }
 
 void JG(CPU* cpu) {
-    u8 size;
-    size_t address = get_effective_address(cpu, &size);
+    size_t address = get_effective_address(cpu);
 
     if(cpu->flag_zero == 0 && cpu->flag_negative == cpu->flag_overflow) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
+}
+
+void CALL(CPU* cpu) {
+    size_t effective_address = get_effective_address(cpu);
+
+    cpu->sp -= 8;
+    cpu_write(cpu, &cpu->ip, cpu->sp, sizeof(cpu->ip));
+    DEBUG_PRINT("Pushing current instruction pointer(%#lx) to address %#lx\n", cpu->ip, cpu->sp);
+
+    cpu->ip = effective_address;
+}
+
+void RET(CPU* cpu) {
+    DEBUG_PRINT("Reading from address %#lx into instruction pointer\n", cpu->sp);
+    cpu_read(cpu, &cpu->ip, cpu->sp, sizeof(cpu->ip));
+    cpu->sp += 8;
 }
 
 void NOP(CPU* cpu) {
