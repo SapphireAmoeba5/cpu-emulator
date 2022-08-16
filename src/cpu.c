@@ -9,6 +9,7 @@
 #include "types.h"
 #include "cpu.h"
 #include "debug.h"
+#include "reserved_idt_entries.h"
 
 // Functions declarations
 u8 fetch_byte(CPU* cpu);
@@ -62,6 +63,9 @@ void JG(CPU* cpu);
 void CALL(CPU* cpu);
 void RET(CPU* cpu);
 
+void LIDT(CPU* cpu);
+void INT(CPU* cpu);
+
 void NOP(CPU* cpu);
 
 typedef struct {
@@ -71,8 +75,8 @@ typedef struct {
 
 static instruction instruction_lookup[256] = {
    //           0             1             2             3             4             5             6             7             8             9             A             B             C             D             E             F
-   /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"XXX", XXX}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"CALL", CALL}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"RET", RET}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"XXX", XXX}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"CALL", CALL}, {"XXX", XXX}, {"LIDT", LIDT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"RET", RET}, {"XXX", XXX}, {"INT", INT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"JO", JO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"JNO", JNO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
@@ -97,6 +101,10 @@ typedef struct impl_cpu {
     u64 fetched; /* Last fetched value */
     bool halted;
 
+    u64 idt; /* Address of the interrupt descriptor table.
+                The interrupt descriptor table is 256 entries long with each entry being 8 bytes.
+                Each entry is an address to transfer execution control to when an interrupt occurs */
+
     u64 x0, x1, x2, x3, x4; /* General purpose registers. Can be used however the programmer wants */
     u64 sp; /* Stack pointer */
     u64 ip; /* Instruction pointer */
@@ -106,11 +114,14 @@ typedef struct impl_cpu {
     u8 flag_overflow;
     u8 flag_zero;
     u8 flag_carry;
+    u8 flag_interrupt_disable; /* Enabled if non-maskable interrupts are to be disabled. Non-maskable interrupts aren't effected */
 } CPU;
 
 CPU* create_cpu(size_t memory_size) {
+    // By default everything in the CPU is zero initialized
     CPU* cpu = calloc(1, sizeof(CPU));
 
+    // Memory is also zero initialized when the CPU is created
     cpu->memory = calloc(memory_size, 1);
     cpu->memory_size = memory_size;
 
@@ -141,11 +152,13 @@ void cpu_reset(CPU* cpu) {
 
     cpu->fetched = 0;
     cpu->halted = false;
+    cpu->idt = 0;
 
     cpu->flag_negative = 0;
     cpu->flag_overflow = 0;
     cpu->flag_zero = 0;
     cpu->flag_carry = 0;
+    cpu->flag_interrupt_disable = 0;
 
     // CPU reads 8 bytes from address 0x0 to find an address to jump to in order to start executing
     cpu_read(cpu, &cpu->ip, 0x0, 8);
@@ -176,6 +189,12 @@ bool is_halted(CPU* cpu) {
     return cpu->halted;
 }
 
+void dump_cpu_memory(CPU* cpu, const char* filepath) {
+    FILE* file = fopen(filepath, "wb");
+    fwrite(cpu->memory, 1, cpu->memory_size, file);
+    fclose(file);
+}
+
 // Fetch a byte at the address of the instruction pointer
 u8 fetch_byte(CPU* cpu) {
     u8 byte;
@@ -183,12 +202,6 @@ u8 fetch_byte(CPU* cpu) {
     cpu->fetched = byte;
     cpu->ip++;
     return byte;
-}
-
-void dump_cpu_memory(CPU* cpu, const char* filepath) {
-    FILE* file = fopen(filepath, "wb");
-    fwrite(cpu->memory, 1, cpu->memory_size, file);
-    fclose(file);
 }
 
 // Fetch a word (2 bytes) at the address of the instruction pointer
@@ -216,6 +229,54 @@ u64 fetch_qword(CPU* cpu) {
     cpu->fetched = qword;
     cpu->ip += 8;
     return qword;
+}
+
+void push_byte(CPU* cpu, u8 value) {
+    cpu->sp -= 1;
+    cpu_write(cpu, &value, cpu->sp, 1);
+}
+
+void push_word(CPU* cpu, u16 value) {
+    cpu->sp -= 2;
+    cpu_write(cpu, &value, cpu->sp, 2);
+}
+
+void push_dword(CPU* cpu, u32 value) {
+    cpu->sp -= 4;
+    cpu_write(cpu, &value, cpu->sp, 4);
+}
+
+void push_qword(CPU* cpu, u64 value) {
+    cpu->sp -= 8;
+    cpu_write(cpu, &value, cpu->sp, 8);
+}
+
+u8 pop_byte(CPU* cpu) {
+    u8 value;
+    cpu_read(cpu, &value, cpu->sp, 1);
+    cpu->sp += 1;
+    return value;
+}
+
+u16 pop_word(CPU* cpu) {
+    u16 value;
+    cpu_read(cpu, &value, cpu->sp, 2);
+    cpu->sp += 2;
+    return value;
+}
+
+u32 pop_dword(CPU* cpu) {
+    u32 value;
+    cpu_read(cpu, &value, cpu->sp, 4);
+    cpu->sp += 4;
+    return value;
+}
+
+u64 pop_qword(CPU* cpu) {
+    u64 value;
+    cpu_read(cpu, &value, cpu->sp, 8);
+    cpu->sp += 8;
+    return value;
 }
 
 u64 fetch_sized(CPU* cpu, u64 size) {
@@ -256,27 +317,6 @@ void print_registers(CPU* cpu) {
                 "\t\tzero: %d\n"
                 "\t\tcarry: %d\n", cpu->x0, cpu->x0, cpu->x1, cpu->x1, cpu->x2, cpu->x2, cpu->x3, cpu->x3, cpu->x4, cpu->x4, cpu->ip, cpu->ip, cpu->sp, cpu->sp, cpu->flag_negative, cpu->flag_overflow, cpu->flag_zero, cpu->flag_carry);
 
-}
-
-void get_cpu_state(CPU* cpu, cpu_state* state) {
-    state->memory_size = cpu->memory_size;
-    state->memory = cpu->memory;
-
-    cpu->halted = cpu->halted;
-
-    state->x0 = cpu->x0;
-    state->x1 = cpu->x1;
-    state->x2 = cpu->x2;
-    state->x3 = cpu->x3;
-    state->x4 = cpu->x4;
-
-    state->ip = cpu->ip;
-    state->sp = cpu->sp;
-
-    state->flag_negative = cpu->flag_negative;
-    state->flag_carry = cpu->flag_carry;
-    state->flag_zero = cpu->flag_zero;
-    state->flag_overflow = cpu->flag_overflow;
 }
 
 // Get a pointer to the register ID specified by reg_index. If reg_index is an invalid register ID this functions returns NULL.
@@ -418,19 +458,56 @@ void write_value_to_register(CPU* cpu, u64* reg_ptr, u64 value, u8 size) {
             break;
     }
 }
+//
+// The actual code to handle CPU interrupts
+void interrupt_handler(CPU* cpu, u8 idt_entry) {
+    const int sizeof_idt_entry = 8;
 
-// Exceptions don't just mean something went wrong. It could be a syscall, or some kind of other interupt
-// The programmer can define their own exception call table. If an exception that does not have a defined procedure is called then the CPU is reset.
-void trigger_exception(CPU* cpu) {
-    DEBUG_PRINT("Exceptions not implemented yet\n");
-    exit(1);
+    /// 0 is an invalid location for the IDT. Any interrupt that occurs is irrecoverable so we must reset the cpu to a known state
+    if(cpu->idt == 0) {
+        cpu_reset(cpu);
+        return;
+    }
+
+    u64 idt_entry_address = cpu->idt + (idt_entry * sizeof_idt_entry);
+
+    u64 handler_address;
+    cpu_read(cpu, &handler_address, idt_entry_address, sizeof(u64));
+
+    // A handler address of zero implies this entry was unitialized
+    if(handler_address == 0) {
+        cpu_reset(cpu);
+        return;
+    }
+
+    cpu->ip = handler_address;
+
+    // TODO Push CPU flags, and old instruction pointer to stack
+
+}
+
+// Triggers an interrupt that cannot be disabled
+void non_maskable_interrupt(CPU* cpu, u8 idt_entry) {
+    DEBUG_PRINT("Non maskable interrupt for entry %d\n", idt_entry);
+    interrupt_handler(cpu, idt_entry);
+}
+
+// Triggers an interrupt request that can be disabled if the interrupt disable flag is set
+void interrupt_request(CPU* cpu, u8 idt_entry) {
+    DEBUG_PRINT("Interrupt request for entry %d\n", idt_entry);
+    if(cpu->flag_interrupt_disable) {
+        DEBUG_PRINT("Interrupts disabled\n");
+        return;
+    }
+
+    interrupt_handler(cpu, idt_entry);
 }
 
 // CPU instructions
 
 void XXX(CPU* cpu) {
     DEBUG_PRINT("Invalid instruction with opcode %#lx\n", cpu->fetched);
-    //trigger_exception(cpu);
+    non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
 }
 
 
@@ -450,11 +527,6 @@ void MOV(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
-
     u64 move_value;
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
@@ -462,6 +534,12 @@ void MOV(CPU* cpu) {
     }
     else {
         move_value = *src_ptr;
+    }
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid DST register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     write_value_to_register(cpu, dst_ptr, move_value, size);
@@ -478,11 +556,6 @@ void ADD(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid destination pointer in ADD instruction\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operator;
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
@@ -492,9 +565,14 @@ void ADD(CPU* cpu) {
         right_operator = *src_ptr;
     }
 
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
+
     u64 result = *dst_ptr + right_operator;
 
-    // We need to do all this bitshift and bit operations because the size of the operation can change and the alternative is writing 4 different branches for each size
     u8 dst_sign_bit = (*dst_ptr >> (size * 8 - 1)) & 1;
     u8 src_sign_bit = (right_operator >> (size * 8 - 1)) & 1;
     u8 result_sign_bit = (result >> (size * 8 - 1)) & 1;
@@ -517,11 +595,6 @@ void SUB(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid destination pointer in SUB instruction\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operator;
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
@@ -529,6 +602,12 @@ void SUB(CPU* cpu) {
     }
     else {
         right_operator = *src_ptr;
+    }
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination pointer\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = *dst_ptr - right_operator;
@@ -555,11 +634,6 @@ void MUL(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid destination pointer in MUL instruction\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operator;
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
@@ -567,6 +641,12 @@ void MUL(CPU* cpu) {
     }
     else {
         right_operator = *src_ptr;
+    }
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination pointer\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = *dst_ptr * right_operator;
@@ -588,11 +668,6 @@ void DIV(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid destination pointer in DIV instruction\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operator;
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
@@ -604,7 +679,14 @@ void DIV(CPU* cpu) {
 
     if(right_operator == 0) {
         DEBUG_PRINT("Divide by ZERO error!\n");
-        trigger_exception(cpu);
+        non_maskable_interrupt(cpu, DIVIDE_BY_ZERO);
+        return;
+    }
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = *dst_ptr / right_operator;
@@ -625,11 +707,6 @@ void OR(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operand;
 
     if(src_ptr == NULL) {
@@ -638,6 +715,12 @@ void OR(CPU* cpu) {
     }
     else {
         right_operand = *src_ptr;
+    }
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = *dst_ptr | right_operand;
@@ -657,11 +740,6 @@ void XOR(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operand;
 
     if(src_ptr == NULL) {
@@ -670,6 +748,12 @@ void XOR(CPU* cpu) {
     }
     else {
         right_operand = *src_ptr;
+    }
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = *dst_ptr ^ right_operand;
@@ -689,13 +773,7 @@ void AND(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operand;
-
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
         right_operand = cpu->fetched;
@@ -704,8 +782,13 @@ void AND(CPU* cpu) {
         right_operand = *src_ptr;
     }
 
-    u64 result = *dst_ptr & right_operand;
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
 
+    u64 result = *dst_ptr & right_operand;
     cpu->flag_zero = result == 0;
 
     write_value_to_register(cpu, dst_ptr, result, size);
@@ -720,8 +803,9 @@ void NOT(CPU* cpu) {
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
     if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = ~(*dst_ptr);
@@ -740,8 +824,9 @@ void NEG(CPU* cpu) {
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
     if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
+        DEBUG_PRINT("Invalid destination register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
     u64 result = -(*dst_ptr);
@@ -761,11 +846,6 @@ void CMP(CPU* cpu) {
     u64* src_ptr = get_reg_ptr(cpu, src_id);
     u64* dst_ptr = get_reg_ptr(cpu, dst_id);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
-
     u64 right_operator;
     if(src_ptr == NULL) {
         fetch_sized(cpu, size);
@@ -775,6 +855,12 @@ void CMP(CPU* cpu) {
         right_operator = *src_ptr;
     }
     DEBUG_PRINT("Comparing %lu with %lu\n", *dst_ptr, right_operator);
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid DST register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
 
     u64 result = *dst_ptr - right_operator;
 
@@ -796,11 +882,12 @@ void PUSH(CPU* cpu) {
 
     if(src_ptr == NULL) {
         DEBUG_PRINT("Invalid SRC register\n");
-        trigger_exception(cpu);
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
-    cpu->sp -= 8;
-    cpu_write(cpu, src_ptr, cpu->sp, 8);
+    push_qword(cpu, *src_ptr);
+
     DEBUG_PRINT("Wrote %lu to address %lu from register %s\n", *src_ptr, cpu->sp, get_reg_name(src_id));
 }
 
@@ -812,11 +899,13 @@ void POP(CPU* cpu) {
 
     if(dst_ptr == NULL) {
         DEBUG_PRINT("Invalid DST register!\n");
-        trigger_exception(cpu);
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
     }
 
-    cpu_read(cpu, dst_ptr, cpu->sp, 8);
-    cpu->sp += 8;
+    u64 value = pop_qword(cpu);
+    *dst_ptr = value;
+
     DEBUG_PRINT("Read %lu into register %s from address %lu\n", *dst_ptr, get_reg_name(dst_id), cpu->sp - 8);
 }
 
@@ -825,12 +914,15 @@ void STR(CPU* cpu) {
 
     u64* src_ptr = get_reg_ptr(cpu, cpu->fetched & 0b111);
     u8 size = 1 << (cpu->fetched >> 6 & 0b11);
-    if(src_ptr == NULL) {
-        DEBUG_PRINT("Invalid SRC register\n");
-        trigger_exception(cpu);
-    }
 
     u64 effective_address = get_effective_address(cpu);
+
+    if(src_ptr == NULL) {
+        DEBUG_PRINT("Invalid SRC register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
+
     cpu_write(cpu, src_ptr, effective_address, size);
 }
 
@@ -840,15 +932,16 @@ void LDR(CPU* cpu) {
     u64* dst_ptr = get_reg_ptr(cpu, cpu->fetched & 0b111);
     u8 size = 1 << (cpu->fetched >> 6 & 0b11);
 
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
-
     u64 effective_address = get_effective_address(cpu);
 
     u64 derefrenced = 0;
     cpu_read(cpu, &derefrenced, effective_address, size);
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid DST register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
 
     write_value_to_register(cpu, dst_ptr, derefrenced, size);
 }
@@ -858,12 +951,15 @@ void LEA(CPU* cpu) {
 
     u64* dst_ptr = get_reg_ptr(cpu, cpu->fetched & 0b111);
     u8 size = 1 << (cpu->fetched >> 6 & 0b11);
-    if(dst_ptr == NULL) {
-        DEBUG_PRINT("Invalid DST register\n");
-        trigger_exception(cpu);
-    }
 
     u64 effective_address = get_effective_address(cpu);
+
+    if(dst_ptr == NULL) {
+        DEBUG_PRINT("Invalid DST register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
+
     write_value_to_register(cpu, dst_ptr, effective_address, size);
 }
 
@@ -1002,8 +1098,7 @@ void JG(CPU* cpu) {
 void CALL(CPU* cpu) {
     size_t effective_address = get_effective_address(cpu);
 
-    cpu->sp -= 8;
-    cpu_write(cpu, &cpu->ip, cpu->sp, sizeof(cpu->ip));
+    push_qword(cpu, cpu->ip);
     DEBUG_PRINT("Pushing current instruction pointer(%#lx) to address %#lx\n", cpu->ip, cpu->sp);
 
     cpu->ip = effective_address;
@@ -1011,8 +1106,21 @@ void CALL(CPU* cpu) {
 
 void RET(CPU* cpu) {
     DEBUG_PRINT("Reading from address %#lx into instruction pointer\n", cpu->sp);
-    cpu_read(cpu, &cpu->ip, cpu->sp, sizeof(cpu->ip));
-    cpu->sp += 8;
+
+    u64 return_address = pop_qword(cpu);
+    cpu->ip = return_address;
+}
+
+void LIDT(CPU* cpu) {
+    size_t effective_address = get_effective_address(cpu);
+
+    DEBUG_PRINT("Setting IDT to address %p\n", (void*)effective_address);
+    cpu->idt = effective_address;
+}
+
+void INT(CPU* cpu) {
+    fetch_byte(cpu);
+    interrupt_request(cpu, (u8)cpu->fetched);
 }
 
 void NOP(CPU* cpu) {
