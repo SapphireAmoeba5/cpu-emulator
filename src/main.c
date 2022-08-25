@@ -10,6 +10,11 @@
 int load_file_into_cpu_memory(CPU* cpu, size_t memory_size, const char* filepath) {
     FILE* file = fopen(filepath, "rb");
 
+    if(file == NULL) {
+	    printf("Cannot open file\n");
+	    return 1;
+    }
+
     size_t file_size;
     fseek(file, 0, SEEK_END);
     file_size = ftell(file);

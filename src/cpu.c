@@ -40,6 +40,8 @@ void CMP(CPU* cpu);
 
 void PUSH(CPU* cpu);
 void POP(CPU* cpu);
+void PUSHF(CPU* cpu);
+void POPF(CPU* cpu);
 
 void STR(CPU* cpu);
 void LDR(CPU* cpu);
@@ -64,7 +66,10 @@ void CALL(CPU* cpu);
 void RET(CPU* cpu);
 
 void LIDT(CPU* cpu);
+void RETI(CPU* cpu);
 void INT(CPU* cpu);
+void CLI(CPU* cpu);
+void STI(CPU* cpu);
 
 void NOP(CPU* cpu);
 
@@ -77,13 +82,13 @@ static instruction instruction_lookup[256] = {
    //           0             1             2             3             4             5             6             7             8             9             A             B             C             D             E             F
    /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"XXX", XXX}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"CALL", CALL}, {"XXX", XXX}, {"LIDT", LIDT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"RET", RET}, {"XXX", XXX}, {"INT", INT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"JO", JO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"JNO", JNO}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"RETI", RETI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"JO", JO}, {"XXX", XXX}, {"XXX", XXX}, {"CLI", CLI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"JNO", JNO}, {"XXX", XXX}, {"XXX", XXX}, {"STI", STI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 5 */ {"XXX", XXX}, {"LDR", LDR}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JS", JS}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 6 */ {"XXX", XXX}, {"LEA", LEA}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JNS", JNS}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 7 */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JC", JC}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 8 */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JNC", JNC}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 7 */ {"XXX", XXX}, {"PUSHF", PUSHF}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JC", JC}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 8 */ {"XXX", XXX}, {"POPF", POPF}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JNC", JNC}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 9 */ {"NOP", NOP}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JBE", JBE}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* A */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JA", JA}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* B */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JL", JL}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
@@ -93,6 +98,11 @@ static instruction instruction_lookup[256] = {
    /* F */ {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}
 };
 
+#define FLAG_NEGATIVE 0
+#define FLAG_OVERFLOW 1
+#define FLAG_ZERO 2
+#define FLAG_CARRY 3
+#define FLAG_INTERRUPT 4
 
 typedef struct impl_cpu {
     size_t memory_size; /* Size of memory in bytes */
@@ -109,12 +119,13 @@ typedef struct impl_cpu {
     u64 sp; /* Stack pointer */
     u64 ip; /* Instruction pointer */
 
+    u64 cpu_flags;
     /* CPU flags */
-    u8 flag_negative;
-    u8 flag_overflow;
-    u8 flag_zero;
-    u8 flag_carry;
-    u8 flag_interrupt_disable; /* Enabled if non-maskable interrupts are to be disabled. Non-maskable interrupts aren't effected */
+    //u8 flag_negative;
+    //u8 flag_overflow;
+    //u8 flag_zero;
+    //u8 flag_carry;
+    //u8 flag_interrupt_disable; /* Enabled if non-maskable interrupts are to be disabled. Non-maskable interrupts aren't effected */
 } CPU;
 
 CPU* create_cpu(size_t memory_size) {
@@ -154,11 +165,7 @@ void cpu_reset(CPU* cpu) {
     cpu->halted = false;
     cpu->idt = 0;
 
-    cpu->flag_negative = 0;
-    cpu->flag_overflow = 0;
-    cpu->flag_zero = 0;
-    cpu->flag_carry = 0;
-    cpu->flag_interrupt_disable = 0;
+    cpu->cpu_flags = 0;
 
     // CPU reads 8 bytes from address 0x0 to find an address to jump to in order to start executing
     cpu_read(cpu, &cpu->ip, 0x0, 8);
@@ -193,6 +200,15 @@ void dump_cpu_memory(CPU* cpu, const char* filepath) {
     FILE* file = fopen(filepath, "wb");
     fwrite(cpu->memory, 1, cpu->memory_size, file);
     fclose(file);
+}
+
+void set_flag(CPU* cpu, u8 bit, bool value) {
+    cpu->cpu_flags &= ~(1U << bit);
+    cpu->cpu_flags |= (u64)value << bit;
+}
+
+bool get_flag(CPU* cpu, u8 bit) {
+    return cpu->cpu_flags >> bit & 0x01;
 }
 
 // Fetch a byte at the address of the instruction pointer
@@ -279,6 +295,14 @@ u64 pop_qword(CPU* cpu) {
     return value;
 }
 
+void push_cpu_flags(CPU* cpu) {
+    push_qword(cpu, cpu->cpu_flags);
+}
+
+void pop_cpu_flags(CPU* cpu) {
+    cpu->cpu_flags = pop_qword(cpu);
+}
+
 u64 fetch_sized(CPU* cpu, u64 size) {
     // There is some sort of internal error is size is not equal to 1, 2, 4, or 8
     assert(size == 1 || size == 2 || size == 4 || size == 8);
@@ -304,18 +328,18 @@ void cpu_read(CPU* cpu, void* dest, size_t address, size_t size) {
 
 void print_registers(CPU* cpu) {
    printf("CPU State:\n"
-                "\t\tx0: %#lx(%lu)\n"
-                "\t\tx1: %#lx(%lu)\n"
-                "\t\tx2: %#lx(%lu)\n"
-                "\t\tx3: %#lx(%lu)\n"
-                "\t\tx4: %#lx(%lu)\n"
+                "\t\tx0: %#lx(%lu) : Signed: %ld\n"
+                "\t\tx1: %#lx(%lu) : Signed: %ld\n"
+                "\t\tx2: %#lx(%lu) : Signed: %ld\n"
+                "\t\tx3: %#lx(%lu) : Signed: %ld\n"
+                "\t\tx4: %#lx(%lu) : Signed: %ld\n"
                 "\t\tip: %#lx(%lu)\n"
                 "\t\tsp: %#lx(%lu)\n"
 
               "\n\t\tnegative: %d\n"
                 "\t\toverflow: %d\n"
                 "\t\tzero: %d\n"
-                "\t\tcarry: %d\n", cpu->x0, cpu->x0, cpu->x1, cpu->x1, cpu->x2, cpu->x2, cpu->x3, cpu->x3, cpu->x4, cpu->x4, cpu->ip, cpu->ip, cpu->sp, cpu->sp, cpu->flag_negative, cpu->flag_overflow, cpu->flag_zero, cpu->flag_carry);
+                "\t\tcarry: %d\n", cpu->x0, cpu->x0, (i64)cpu->x0, cpu->x1, cpu->x1, (i64)cpu->x1, cpu->x2, cpu->x2, (i64)cpu->x2, cpu->x3, cpu->x3, (i64)cpu->x3, cpu->x4, cpu->x4, (i64)cpu->x4, cpu->ip, cpu->ip, cpu->sp, cpu->sp, (i32)get_flag(cpu, FLAG_NEGATIVE), (i32)get_flag(cpu, FLAG_OVERFLOW), (i32)get_flag(cpu, FLAG_ZERO), (i32)get_flag(cpu, FLAG_CARRY));
 
 }
 
@@ -480,6 +504,9 @@ void interrupt_handler(CPU* cpu, u8 idt_entry) {
         return;
     }
 
+    push_cpu_flags(cpu);
+    push_qword(cpu, cpu->ip);
+
     cpu->ip = handler_address;
 
     // TODO Push CPU flags, and old instruction pointer to stack
@@ -495,7 +522,7 @@ void non_maskable_interrupt(CPU* cpu, u8 idt_entry) {
 // Triggers an interrupt request that can be disabled if the interrupt disable flag is set
 void interrupt_request(CPU* cpu, u8 idt_entry) {
     DEBUG_PRINT("Interrupt request for entry %d\n", idt_entry);
-    if(cpu->flag_interrupt_disable) {
+    if(get_flag(cpu, FLAG_INTERRUPT) == false) {
         DEBUG_PRINT("Interrupts disabled\n");
         return;
     }
@@ -577,10 +604,10 @@ void ADD(CPU* cpu) {
     u8 src_sign_bit = (right_operator >> (size * 8 - 1)) & 1;
     u8 result_sign_bit = (result >> (size * 8 - 1)) & 1;
 
-    cpu->flag_overflow = dst_sign_bit == src_sign_bit && dst_sign_bit != result_sign_bit;
-    cpu->flag_carry = (*dst_ptr > result);
-    cpu->flag_negative = result_sign_bit;
-    cpu->flag_zero = result == 0;
+    set_flag(cpu, FLAG_OVERFLOW, dst_sign_bit == src_sign_bit && dst_sign_bit != result_sign_bit);
+    set_flag(cpu, FLAG_CARRY, *dst_ptr > result);
+    set_flag(cpu, FLAG_NEGATIVE, result_sign_bit);
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -616,10 +643,10 @@ void SUB(CPU* cpu) {
     u8 src_sign_bit = (right_operator >> (size * 8 - 1)) & 1;
     u8 result_sign_bit = (result >> (size * 8 - 1)) & 1;
 
-    cpu->flag_overflow = dst_sign_bit != src_sign_bit && dst_sign_bit != result_sign_bit;
-    cpu->flag_carry = (*dst_ptr < result);
-    cpu->flag_negative = result_sign_bit;
-    cpu->flag_zero = result == 0;
+    set_flag(cpu, FLAG_OVERFLOW, dst_sign_bit != src_sign_bit && dst_sign_bit != result_sign_bit);
+    set_flag(cpu, FLAG_CARRY, *dst_ptr < result);
+    set_flag(cpu, FLAG_NEGATIVE, result_sign_bit);
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -651,9 +678,9 @@ void MUL(CPU* cpu) {
 
     u64 result = *dst_ptr * right_operator;
 
-    cpu->flag_zero = result == 0;
-    cpu->flag_negative = (int64_t)result < 0;
-    cpu->flag_carry = *dst_ptr > result;
+    set_flag(cpu, FLAG_ZERO, result == 0);
+    set_flag(cpu, FLAG_NEGATIVE, (i64)result < 0);
+    set_flag(cpu, FLAG_CARRY, *dst_ptr > result);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -691,8 +718,8 @@ void DIV(CPU* cpu) {
 
     u64 result = *dst_ptr / right_operator;
 
-    cpu->flag_zero = result == 0;
-    cpu->flag_negative = (int64_t)result < 0;
+    set_flag(cpu, FLAG_ZERO, result == 0);
+    set_flag(cpu, FLAG_NEGATIVE, (i64)result < 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -725,7 +752,7 @@ void OR(CPU* cpu) {
 
     u64 result = *dst_ptr | right_operand;
 
-    cpu->flag_zero = result == 0;
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -758,7 +785,7 @@ void XOR(CPU* cpu) {
 
     u64 result = *dst_ptr ^ right_operand;
 
-    cpu->flag_zero = result == 0;
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -789,7 +816,8 @@ void AND(CPU* cpu) {
     }
 
     u64 result = *dst_ptr & right_operand;
-    cpu->flag_zero = result == 0;
+
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -810,7 +838,7 @@ void NOT(CPU* cpu) {
 
     u64 result = ~(*dst_ptr);
 
-    cpu->flag_zero = result == 0;
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -831,7 +859,7 @@ void NEG(CPU* cpu) {
 
     u64 result = -(*dst_ptr);
 
-    cpu->flag_zero = result == 0;
+    set_flag(cpu, FLAG_ZERO, result == 0);
 
     write_value_to_register(cpu, dst_ptr, result, size);
 }
@@ -868,10 +896,10 @@ void CMP(CPU* cpu) {
     u8 src_sign_bit = right_operator >> (size * 8 - 1) & 1;
     u8 result_sign_bit = result >> (size * 8 - 1) & 1;
 
-    cpu->flag_zero = result == 0;
-    cpu->flag_carry = *dst_ptr < result;
-    cpu->flag_negative = result_sign_bit & 1;
-    cpu->flag_overflow = dst_sign_bit != src_sign_bit && dst_sign_bit != result_sign_bit;
+    set_flag(cpu, FLAG_ZERO, result == 0);
+    set_flag(cpu, FLAG_CARRY, *dst_ptr < result);
+    set_flag(cpu, FLAG_NEGATIVE, result_sign_bit & 1);
+    set_flag(cpu, FLAG_OVERFLOW, dst_sign_bit != src_sign_bit && dst_sign_bit != result_sign_bit);
 }
 
 void PUSH(CPU* cpu) {
@@ -907,6 +935,14 @@ void POP(CPU* cpu) {
     *dst_ptr = value;
 
     DEBUG_PRINT("Read %lu into register %s from address %lu\n", *dst_ptr, get_reg_name(dst_id), cpu->sp - 8);
+}
+
+void PUSHF(CPU* cpu) {
+    push_cpu_flags(cpu);
+}
+
+void POPF(CPU* cpu) {
+    pop_cpu_flags(cpu);
 }
 
 void STR(CPU* cpu) {
@@ -972,7 +1008,7 @@ void JMP(CPU* cpu) {
 void JZ(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_zero == 1) {
+    if(get_flag(cpu, FLAG_ZERO) == true) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -981,7 +1017,7 @@ void JZ(CPU* cpu) {
 void JNZ(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_zero == 0) {
+    if(get_flag(cpu, FLAG_ZERO) == false) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -990,7 +1026,7 @@ void JNZ(CPU* cpu) {
 void JO(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_overflow == 1) {
+    if(get_flag(cpu, FLAG_OVERFLOW) == true) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -999,7 +1035,7 @@ void JO(CPU* cpu) {
 void JNO(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_overflow == 0) {
+    if(get_flag(cpu, FLAG_OVERFLOW) == false) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1008,7 +1044,7 @@ void JNO(CPU* cpu) {
 void JS(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_negative == 1) {
+    if(get_flag(cpu, FLAG_NEGATIVE) == true) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1017,7 +1053,7 @@ void JS(CPU* cpu) {
 void JNS(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_negative == 0) {
+    if(get_flag(cpu, FLAG_NEGATIVE) == false) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1026,7 +1062,7 @@ void JNS(CPU* cpu) {
 void JC(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_carry == 1) {
+    if(get_flag(cpu, FLAG_CARRY) == true) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1035,7 +1071,7 @@ void JC(CPU* cpu) {
 void JNC(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_carry == 0) {
+    if(get_flag(cpu, FLAG_CARRY) == false) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1044,7 +1080,7 @@ void JNC(CPU* cpu) {
 void JBE(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_carry == 1 || cpu->flag_zero == 1) {
+    if(get_flag(cpu, FLAG_CARRY) == true || get_flag(cpu, FLAG_ZERO) == true) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1053,7 +1089,7 @@ void JBE(CPU* cpu) {
 void JA(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_carry == 0 && cpu->flag_zero == 0) {
+    if(get_flag(cpu, FLAG_CARRY) == false && get_flag(cpu, FLAG_ZERO) == false) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1062,7 +1098,7 @@ void JA(CPU* cpu) {
 void JL(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_negative != cpu->flag_overflow) {
+    if(get_flag(cpu, FLAG_NEGATIVE) != get_flag(cpu, FLAG_OVERFLOW)) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1071,7 +1107,7 @@ void JL(CPU* cpu) {
 void JGE(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_negative == cpu->flag_overflow) {
+    if(get_flag(cpu, FLAG_NEGATIVE) == get_flag(cpu, FLAG_OVERFLOW)) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1080,7 +1116,7 @@ void JGE(CPU* cpu) {
 void JLE(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_zero == 1 || cpu->flag_negative != cpu->flag_overflow) {
+    if(get_flag(cpu, FLAG_ZERO) == true || get_flag(cpu, FLAG_NEGATIVE) != get_flag(cpu, FLAG_OVERFLOW)) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1089,7 +1125,7 @@ void JLE(CPU* cpu) {
 void JG(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
-    if(cpu->flag_zero == 0 && cpu->flag_negative == cpu->flag_overflow) {
+    if(get_flag(cpu, FLAG_ZERO) == false && get_flag(cpu, FLAG_NEGATIVE) == get_flag(cpu, FLAG_OVERFLOW)) {
         DEBUG_PRINT("Jumping to address %#zx\n", address);
         cpu->ip = address;
     }
@@ -1118,9 +1154,23 @@ void LIDT(CPU* cpu) {
     cpu->idt = effective_address;
 }
 
+void RETI(CPU* cpu) {
+    u64 return_address = pop_qword(cpu);
+    pop_cpu_flags(cpu);
+    cpu->ip = return_address;
+}
+
 void INT(CPU* cpu) {
     fetch_byte(cpu);
     interrupt_request(cpu, (u8)cpu->fetched);
+}
+
+void CLI(CPU* cpu) {
+    set_flag(cpu, FLAG_INTERRUPT, false);
+}
+
+void STI(CPU* cpu) {
+    set_flag(cpu, FLAG_INTERRUPT, true);
 }
 
 void NOP(CPU* cpu) {
