@@ -3,16 +3,17 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
-#include "cpu.h"
-#include "debug.h"
-#include "types.h"
+
+#include <cpu/cpu.h>
+#include <debug.h>
+#include <types.h>
 
 int load_file_into_cpu_memory(CPU* cpu, size_t memory_size, const char* filepath) {
     FILE* file = fopen(filepath, "rb");
 
     if(file == NULL) {
-	    printf("Cannot open file\n");
-	    return 1;
+        printf("Cannot open file\n");
+        return 1;
     }
 
     size_t file_size;
@@ -59,7 +60,7 @@ int load_file_into_cpu_memory(CPU* cpu, size_t memory_size, const char* filepath
 int main(int argc, char** argv) {
     DEBUG_PRINT("Running a debug build\n");
 
-    const size_t memory_size = 1024 * 1024;
+    const size_t memory_size = 1024 * 1024 * 16 - 1;
     CPU* cpu = create_cpu(memory_size);
 
     if(argc == 2) {
@@ -78,9 +79,8 @@ int main(int argc, char** argv) {
 
     DEBUG_EXECUTE(printf("\n"));
 
-    while(is_halted(cpu) == false) {
+    while(1) {
         cpu_clock(cpu);
-
         if(is_halted(cpu) == false) {
             DEBUG_EXECUTE(printf("\n"));
         }

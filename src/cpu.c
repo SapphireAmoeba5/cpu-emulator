@@ -6,10 +6,11 @@
 #include <stdbool.h>
 #include <assert.h>
 
+
 #include "types.h"
-#include "cpu.h"
+#include "cpu/cpu.h"
 #include "debug.h"
-#include "reserved_idt_entries.h"
+#include "cpu/reserved_idt_entries.h"
 
 // Functions declarations
 u8 fetch_byte(CPU* cpu);
@@ -120,12 +121,6 @@ typedef struct impl_cpu {
     u64 ip; /* Instruction pointer */
 
     u64 cpu_flags;
-    /* CPU flags */
-    //u8 flag_negative;
-    //u8 flag_overflow;
-    //u8 flag_zero;
-    //u8 flag_carry;
-    //u8 flag_interrupt_disable; /* Enabled if non-maskable interrupts are to be disabled. Non-maskable interrupts aren't effected */
 } CPU;
 
 CPU* create_cpu(size_t memory_size) {
@@ -540,7 +535,6 @@ void XXX(CPU* cpu) {
 
 void HLT(CPU* cpu) {
     DEBUG_EXECUTE(print_registers(cpu));
-
     cpu->halted = true;
 }
 
