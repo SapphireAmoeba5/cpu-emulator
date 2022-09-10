@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
-
+#include <address_bus.h>
 #include "types.h"
 #include "cpu/cpu.h"
 #include "debug.h"
@@ -106,8 +106,7 @@ static instruction instruction_lookup[256] = {
 #define FLAG_INTERRUPT 4
 
 typedef struct impl_cpu {
-    size_t memory_size; /* Size of memory in bytes */
-    u8* memory;
+    address_bus* addr_bus;
 
     u64 fetched; /* Last fetched value */
     bool halted;
@@ -123,22 +122,19 @@ typedef struct impl_cpu {
     u64 cpu_flags;
 } CPU;
 
-CPU* create_cpu(size_t memory_size) {
+CPU* create_cpu(address_bus* addr_bus) {
     // By default everything in the CPU is zero initialized
     CPU* cpu = calloc(1, sizeof(CPU));
 
-    // Memory is also zero initialized when the CPU is created
-    cpu->memory = calloc(memory_size, 1);
-    cpu->memory_size = memory_size;
+    cpu->addr_bus = addr_bus;
 
-    DEBUG_PRINT("Created cpu(%p) with memory size of %zu\n", cpu, memory_size);
+    DEBUG_PRINT("Created cpu(%p)\n", cpu);
     return cpu;
 }
 
 void destroy_cpu(CPU* cpu) {
     DEBUG_PRINT("Destroyed cpu(%p)\n", cpu);
-
-    free(cpu->memory);
+    
     free(cpu);
 }
 
@@ -183,18 +179,8 @@ void cpu_clock(CPU* cpu) {
     instruction_lookup[opcode].operation(cpu);
 }
 
-u8* cpu_raw_memory(CPU* cpu) {
-    return cpu->memory;
-}
-
 bool is_halted(CPU* cpu) {
     return cpu->halted;
-}
-
-void dump_cpu_memory(CPU* cpu, const char* filepath) {
-    FILE* file = fopen(filepath, "wb");
-    fwrite(cpu->memory, 1, cpu->memory_size, file);
-    fclose(file);
 }
 
 void set_flag(CPU* cpu, u8 bit, bool value) {
@@ -311,14 +297,14 @@ u64 fetch_sized(CPU* cpu, u64 size) {
     return ret;
 }
 
-void cpu_write(CPU* cpu, void* data, size_t address, size_t size) {
+void cpu_write(CPU* cpu, void* data, u64 address, size_t size) {
     DEBUG_PRINT("Writing %zu bytes to %#zx\n", size, address);
-    memcpy(&cpu->memory[address], data, size);
+    address_bus_write(cpu->addr_bus, data, address, size);
 }
 
-void cpu_read(CPU* cpu, void* dest, size_t address, size_t size) {
+void cpu_read(CPU* cpu, void* dest, u64 address, size_t size) {
     DEBUG_PRINT("Reading %zu bytes at %#zx\n", size, address);
-    memcpy(dest, &cpu->memory[address], size);
+    address_bus_read(cpu->addr_bus, dest, address, size);
 }
 
 void print_registers(CPU* cpu) {
@@ -1106,7 +1092,6 @@ void JGE(CPU* cpu) {
         cpu->ip = address;
     }
 }
-
 void JLE(CPU* cpu) {
     size_t address = get_effective_address(cpu);
 
