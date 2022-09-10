@@ -44,6 +44,7 @@ void port_bus_remove_device(port_bus* port_bus, u16 port) {
 
     if(e != NULL) {
         free(e);
+        
     }
 }
 
