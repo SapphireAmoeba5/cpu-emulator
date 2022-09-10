@@ -72,6 +72,9 @@ void INT(CPU* cpu);
 void CLI(CPU* cpu);
 void STI(CPU* cpu);
 
+void IN(CPU* cpu);
+void OUT(CPU* cpu);
+
 void NOP(CPU* cpu);
 
 typedef struct {
@@ -82,8 +85,8 @@ typedef struct {
 static instruction instruction_lookup[256] = {
    //           0             1             2             3             4             5             6             7             8             9             A             B             C             D             E             F
    /* 0 */ {"HLT", HLT}, {"MOV", MOV}, {"XXX", XXX}, {"ADD", ADD},  {"OR", OR},  {"JMP", JMP}, {"CALL", CALL}, {"XXX", XXX}, {"LIDT", LIDT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 1 */ {"XXX", XXX}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"RET", RET}, {"XXX", XXX}, {"INT", INT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
-   /* 2 */ {"XXX", XXX}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"RETI", RETI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 1 */ {"IN", IN}, {"CMP", CMP}, {"XXX", XXX}, {"SUB", SUB}, {"XOR", XOR}, {"JZ", JZ}, {"RET", RET}, {"XXX", XXX}, {"INT", INT}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
+   /* 2 */ {"OUT", OUT}, {"PUSH", PUSH}, {"XXX", XXX}, {"MUL", MUL}, {"AND", AND}, {"JNZ", JNZ}, {"XXX", XXX}, {"XXX", XXX}, {"RETI", RETI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 3 */ {"XXX", XXX}, {"POP", POP}, {"XXX", XXX}, {"DIV", DIV}, {"NOT", NOT}, {"JO", JO}, {"XXX", XXX}, {"XXX", XXX}, {"CLI", CLI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 4 */ {"XXX", XXX}, {"STR", STR}, {"XXX", XXX}, {"XXX", XXX}, {"NEG", NEG}, {"JNO", JNO}, {"XXX", XXX}, {"XXX", XXX}, {"STI", STI}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
    /* 5 */ {"XXX", XXX}, {"LDR", LDR}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"JS", JS}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX}, {"XXX", XXX},
@@ -107,6 +110,7 @@ static instruction instruction_lookup[256] = {
 
 typedef struct impl_cpu {
     address_bus* addr_bus;
+    port_bus* port_bus;
 
     u64 fetched; /* Last fetched value */
     bool halted;
@@ -122,11 +126,12 @@ typedef struct impl_cpu {
     u64 cpu_flags;
 } CPU;
 
-CPU* create_cpu(address_bus* addr_bus) {
+CPU* create_cpu(address_bus* addr_bus, port_bus* port_bus) {
     // By default everything in the CPU is zero initialized
     CPU* cpu = calloc(1, sizeof(CPU));
 
     cpu->addr_bus = addr_bus;
+    cpu->port_bus = port_bus;
 
     DEBUG_PRINT("Created cpu(%p)\n", cpu);
     return cpu;
@@ -217,6 +222,11 @@ u32 fetch_dword(CPU* cpu) {
     cpu->fetched = dword;
     cpu->ip += 4;
     return dword;
+}
+
+void fetch_n(CPU* cpu, void* dest, size_t size) {
+    cpu_read(cpu, dest, cpu->ip, size);
+    cpu->ip += size;
 }
 
 // Fetch a qword (8 bytes) at the address of the instruction pointer
@@ -1150,6 +1160,38 @@ void CLI(CPU* cpu) {
 
 void STI(CPU* cpu) {
     set_flag(cpu, FLAG_INTERRUPT, true);
+}
+
+void IN(CPU* cpu) {
+    fetch_byte(cpu);
+
+    u64* dst_reg = get_reg_ptr(cpu, cpu->fetched & 0xff);
+
+    if(dst_reg == NULL) {
+        DEBUG_PRINT("Invalid DST register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
+
+    u16 port = fetch_word(cpu);
+
+    port_bus_read(cpu->port_bus, port, dst_reg);
+}
+
+void OUT(CPU* cpu) {
+    fetch_byte(cpu);
+
+    u64* src_reg = get_reg_ptr(cpu, cpu->fetched & 0xff);
+
+    if(src_reg == NULL) {
+        DEBUG_PRINT("Invalid SRC register\n");
+        non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
+        return;
+    }
+
+    u16 port = fetch_word(cpu);
+
+    port_bus_write(cpu->port_bus, port, *src_reg);
 }
 
 void NOP(CPU* cpu) {

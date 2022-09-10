@@ -13,14 +13,12 @@ typedef struct memory_impl {
 } memory;
 
 void memory_write_callback(void* src, u64 address, u64 offset, size_t len, void* private_data) {
-    DEBUG_PRINT("Memory write callback: Address %lu - %lu (length %lu) offset %lu\n", address, address + len - 1, len, offset);
     memory* mem = (memory*)private_data;
     
     memcpy(&mem->data[offset], src, len);
 }
 
 void memory_read_callback(void* dest, u64 address, u64 offset, size_t len, void* private_data) {
-    DEBUG_PRINT("Memory read callback: Address %lu - %lu (length %lu) offset %lu\n", address, address + len - 1, len, offset);
     memory* mem = (memory*)private_data;
 
     memcpy(dest, &mem->data[offset], len);

@@ -58,9 +58,11 @@ int main(int argc, char** argv) {
     DEBUG_PRINT("Running a debug build\n");
 
     address_bus* addr_bus = create_address_bus();
+    port_bus* port_bus = port_bus_create();
+
     memory* mem = memory_create(addr_bus);
-    
-    CPU* cpu = create_cpu(addr_bus);
+
+    CPU* cpu = create_cpu(addr_bus, port_bus);
 
     if(argc == 2) {
         DEBUG_EXECUTE(printf("\n"));
