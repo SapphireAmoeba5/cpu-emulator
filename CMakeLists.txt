@@ -13,3 +13,7 @@ set(INCLUDE include)
 add_executable(cpu-emulator ${SRCS})
 
 target_include_directories(cpu-emulator PRIVATE ${INCLUDE})
+
+target_link_libraries(cpu-emulator pthread)
+
+install(TARGETS cpu-emulator)

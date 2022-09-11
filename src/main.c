@@ -34,19 +34,18 @@ int load_file_into_cpu_memory(CPU* cpu, const char* filepath) {
     // Read the first 8 bytes of the file, containing the file entry point offset
     memcpy(&off_entry_point, buffer, sizeof(u64));
 
-    DEBUG_PRINT("File offset entry point %lu\n", off_entry_point);
+    DEBUG_PRINT("File offset entry point %llu\n", off_entry_point);
 
     // Subtract 8 because the first 8 bytes aren't CPU instructions, and add 16 because the first 2 bytes in memory are reserved.
     u64 addr_entry_point = (off_entry_point - 8) + 16;
-    DEBUG_PRINT("Address entry point %lu\n", addr_entry_point);
+    DEBUG_PRINT("Address entry point %llu\n", addr_entry_point);
     cpu_write(cpu, &addr_entry_point, 0x00, sizeof(u64));
 
     u64 addr_stack = 0xff0000;
-    DEBUG_PRINT("Top of stack %lu\n", addr_stack);
+    DEBUG_PRINT("Top of stack %llu\n", addr_stack);
     cpu_write(cpu, &addr_stack, 0x08, sizeof(u64));
 
     cpu_write(cpu, buffer + 8, 16, file_size - 8);
-
 
     free(buffer);
     fclose(file);
@@ -59,7 +58,7 @@ int main(int argc, char** argv) {
 
     address_bus* addr_bus = create_address_bus();
     port_bus* port_bus = port_bus_create();
-
+    
     memory* mem = memory_create(addr_bus);
 
     CPU* cpu = create_cpu(addr_bus, port_bus);
@@ -75,9 +74,8 @@ int main(int argc, char** argv) {
         printf("Invalid use of command line arguments\n");
         return 1;
     }
-
     cpu_reset(cpu);
-
+    
     DEBUG_EXECUTE(printf("\n"));
 
     while(1) {
