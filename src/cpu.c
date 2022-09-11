@@ -165,11 +165,11 @@ void cpu_reset(CPU* cpu) {
 
     // CPU reads 8 bytes from address 0x0 to find an address to jump to in order to start executing
     cpu_read(cpu, &cpu->ip, 0x0, 8);
-    DEBUG_PRINT("Beginning execution at %#lx\n", cpu->ip);
+    DEBUG_PRINT("Beginning execution at %#llx\n", cpu->ip);
 
     // CPU reads 8 bytes from address 0x8 to find the top of the stack
     cpu_read(cpu, &cpu->sp, 0x8, 8);
-    DEBUG_PRINT("Top of stack %#lx\n", cpu->sp);
+    DEBUG_PRINT("Top of stack %#llx\n", cpu->sp);
 }
 
 void cpu_clock(CPU* cpu) {
@@ -308,24 +308,24 @@ u64 fetch_sized(CPU* cpu, u64 size) {
 }
 
 void cpu_write(CPU* cpu, void* data, u64 address, size_t size) {
-    DEBUG_PRINT("Writing %zu bytes to %#zx\n", size, address);
+    DEBUG_PRINT("Writing %zu bytes to %#llx\n", size, address);
     address_bus_write(cpu->addr_bus, data, address, size);
 }
 
 void cpu_read(CPU* cpu, void* dest, u64 address, size_t size) {
-    DEBUG_PRINT("Reading %zu bytes at %#zx\n", size, address);
+    DEBUG_PRINT("Reading %zu bytes at %#llx\n", size, address);
     address_bus_read(cpu->addr_bus, dest, address, size);
 }
 
 void print_registers(CPU* cpu) {
    printf("CPU State:\n"
-                "\t\tx0: %#lx(%lu) : Signed: %ld\n"
-                "\t\tx1: %#lx(%lu) : Signed: %ld\n"
-                "\t\tx2: %#lx(%lu) : Signed: %ld\n"
-                "\t\tx3: %#lx(%lu) : Signed: %ld\n"
-                "\t\tx4: %#lx(%lu) : Signed: %ld\n"
-                "\t\tip: %#lx(%lu)\n"
-                "\t\tsp: %#lx(%lu)\n"
+                "\t\tx0: %#llx(%llu) : Signed: %lld\n"
+                "\t\tx1: %#llx(%llu) : Signed: %lld\n"
+                "\t\tx2: %#llx(%llu) : Signed: %lld\n"
+                "\t\tx3: %#llx(%llu) : Signed: %lld\n"
+                "\t\tx4: %#llx(%llu) : Signed: %lld\n"
+                "\t\tip: %#llx(%llu)\n"
+                "\t\tsp: %#llx(%llu)\n"
 
               "\n\t\tnegative: %d\n"
                 "\t\toverflow: %d\n"
@@ -453,22 +453,22 @@ void write_value_to_register(CPU* cpu, u64* reg_ptr, u64 value, u8 size) {
 
     switch(size) {
         case 1:
-            DEBUG_PRINT("Writing byte %lu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
+            DEBUG_PRINT("Writing byte %llu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
             *reg_ptr &= 0xffffffffffffff00;
             *reg_ptr |= (value & 0x00000000000000ff);
             break;
         case 2:
-            DEBUG_PRINT("Writing word %lu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
+            DEBUG_PRINT("Writing word %llu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
             *reg_ptr &= 0xffffffffffff0000;
             *reg_ptr |= (value & 0x000000000000ffff);
             break;
         case 4:
-            DEBUG_PRINT("Writing dword %lu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
+            DEBUG_PRINT("Writing dword %llu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
             *reg_ptr &= 0xffffffff00000000;
             *reg_ptr |= (value & 0x00000000ffffffff);
             break;
         case 8:
-            DEBUG_PRINT("Writing qword %lu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
+            DEBUG_PRINT("Writing qword %llu to register %s\n", value, get_reg_name_from_ptr(cpu, reg_ptr));
             *reg_ptr = value;
             break;
     }
@@ -524,7 +524,7 @@ void interrupt_request(CPU* cpu, u8 idt_entry) {
 // CPU instructions
 
 void XXX(CPU* cpu) {
-    DEBUG_PRINT("Invalid instruction with opcode %#lx\n", cpu->fetched);
+    DEBUG_PRINT("Invalid instruction with opcode %#llx\n", cpu->fetched);
     non_maskable_interrupt(cpu, INVALID_INSTRUCTION);
 }
 
@@ -872,7 +872,7 @@ void CMP(CPU* cpu) {
     else {
         right_operator = *src_ptr;
     }
-    DEBUG_PRINT("Comparing %lu with %lu\n", *dst_ptr, right_operator);
+    DEBUG_PRINT("Comparing %llu with %llu\n", *dst_ptr, right_operator);
 
     if(dst_ptr == NULL) {
         DEBUG_PRINT("Invalid DST register\n");
@@ -906,7 +906,7 @@ void PUSH(CPU* cpu) {
 
     push_qword(cpu, *src_ptr);
 
-    DEBUG_PRINT("Wrote %lu to address %lu from register %s\n", *src_ptr, cpu->sp, get_reg_name(src_id));
+    DEBUG_PRINT("Wrote %llu to address %llu from register %s\n", *src_ptr, cpu->sp, get_reg_name(src_id));
 }
 
 void POP(CPU* cpu) {
@@ -924,7 +924,7 @@ void POP(CPU* cpu) {
     u64 value = pop_qword(cpu);
     *dst_ptr = value;
 
-    DEBUG_PRINT("Read %lu into register %s from address %lu\n", *dst_ptr, get_reg_name(dst_id), cpu->sp - 8);
+    DEBUG_PRINT("Read %llu into register %s from address %llu\n", *dst_ptr, get_reg_name(dst_id), cpu->sp - 8);
 }
 
 void PUSHF(CPU* cpu) {
@@ -1124,13 +1124,13 @@ void CALL(CPU* cpu) {
     size_t effective_address = get_effective_address(cpu);
 
     push_qword(cpu, cpu->ip);
-    DEBUG_PRINT("Pushing current instruction pointer(%#lx) to address %#lx\n", cpu->ip, cpu->sp);
+    DEBUG_PRINT("Pushing current instruction pointer(%#llx) to address %#llx\n", cpu->ip, cpu->sp);
 
     cpu->ip = effective_address;
 }
 
 void RET(CPU* cpu) {
-    DEBUG_PRINT("Reading from address %#lx into instruction pointer\n", cpu->sp);
+    DEBUG_PRINT("Reading from address %#llx into instruction pointer\n", cpu->sp);
 
     u64 return_address = pop_qword(cpu);
     cpu->ip = return_address;

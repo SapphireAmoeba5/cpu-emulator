@@ -120,7 +120,7 @@ bool address_bus_add_device(address_bus* addr_bus, u64 address, u64 len, void* p
     if(!found_where) {
         address_bus_entry e = create_address_bus_entry(address, len, private_data, write_callback, read_callback);
 
-        DEBUG_PRINT("Inserting address bus entry at %p with length %lu\n", (void*)address, len);
+        DEBUG_PRINT("Inserting address bus entry at %p with length %llu\n", (void*)address, len);
         return address_bus_insert(addr_bus, i, &e);
     }
 
@@ -182,6 +182,6 @@ void print_entries(address_bus* addr_bus) {
     for(size_t i = 0; i < addr_bus->entries_length; i++) {
         address_bus_entry* e = &addr_bus->entries[i];
 
-        printf("Address: %p (%lu) : Length: %lu : Write callback %p : Read callback %p\n", (void*)e->address, e->address, e->length, e->write_callback_func, e->read_callback_func);
+        printf("Address: %p (%llu) : Length: %lu : Write callback %p : Read callback %p\n", (void*)e->address, e->address, e->length, e->write_callback_func, e->read_callback_func);
     }
 }

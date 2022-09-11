@@ -8,9 +8,9 @@ typedef struct port_bus_impl {
 } port_bus;
 
 port_bus* port_bus_create() {
-    port_bus* port_bus = calloc(1, sizeof(port_bus));
+    port_bus* new_port_bus = calloc(1, sizeof(port_bus));
 
-    return port_bus;
+    return new_port_bus;
 }
 
 void port_bus_destroy(port_bus* port_bus) {
@@ -44,7 +44,6 @@ void port_bus_remove_device(port_bus* port_bus, u16 port) {
 
     if(e != NULL) {
         free(e);
-        
     }
 }
 
