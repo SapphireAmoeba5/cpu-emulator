@@ -18,7 +18,7 @@ typedef struct address_bus_impl {
     address_bus_entry entries[MAX_ENTRY_LENGTH];
 } address_bus;
 
-address_bus_entry create_address_bus_entry(u64 address, size_t length, void* private_data, write_callback_function write_callback, read_callback_function read_callback) {
+address_bus_entry create_address_bus_entry(u64 address, size_t length, void* private_data, address_bus_write_callback_function write_callback, address_bus_read_callback_function read_callback) {
     address_bus_entry e;
 
     e.address = address;
@@ -90,7 +90,7 @@ void destroy_address_bus(address_bus* addr_bus) {
     free(addr_bus);
 }
 
-bool address_bus_add_device(address_bus* addr_bus, u64 address, u64 len, void* private_data, write_callback_function write_callback, read_callback_function read_callback) {
+bool address_bus_add_device(address_bus* addr_bus, u64 address, u64 len, void* private_data, address_bus_write_callback_function write_callback, address_bus_read_callback_function read_callback) {
     if(len == 0) {
         return true;
     }

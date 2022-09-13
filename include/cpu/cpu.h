@@ -21,4 +21,7 @@ void cpu_write(CPU* cpu, void* data, u64 address, size_t size);
 
 void cpu_read(CPU* cpu, void* dest, u64 address, size_t size);
 
+address_bus* cpu_get_address_bus(CPU* cpu);
+port_bus* cpu_get_port_bus(CPU* cpu);
+
 void print_registers(CPU* cpu);

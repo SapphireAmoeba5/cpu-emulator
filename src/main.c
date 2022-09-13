@@ -1,22 +1,41 @@
+#include "command_args.h"
+#include "port_bus.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/syslimits.h>
 
 #include <cpu/cpu.h>
 #include <debug.h>
 #include <types.h>
-
 #include <address_bus.h>
 #include <memory.h>
+#include <config_file_parse.h>
 
-int load_file_into_cpu_memory(CPU* cpu, const char* filepath) {
+bool load_program_into_cpu_memory(CPU* cpu, u8* program, size_t program_length, size_t entry_point) {
+    // Convert the entry point into an address to copy the program to
+    u64 addr_entry_point = entry_point+ 16;
+    DEBUG_PRINT("Address entry point %llu\n", addr_entry_point);
+    cpu_write(cpu, &addr_entry_point, 0x00, sizeof(u64));
+
+    // The default stack address is an arbitrary value. Soon this may be hardcoded into the cpu directly
+    u64 addr_stack = 0xff0000;
+    DEBUG_PRINT("Top of stack %llu\n", addr_stack);
+    cpu_write(cpu, &addr_stack, 0x08, sizeof(u64));
+
+    cpu_write(cpu, program, 16, program_length);
+
+    return true;
+}
+
+bool load_file_into_cpu_memory(CPU* cpu, const char* filepath) {
     FILE* file = fopen(filepath, "rb");
 
     if(file == NULL) {
         printf("Cannot open file\n");
-        return 1;
+        return false;
     }
 
     size_t file_size;
@@ -29,28 +48,35 @@ int load_file_into_cpu_memory(CPU* cpu, const char* filepath) {
     u8* buffer = malloc(file_size);
     fread(buffer, 1, file_size, file);
 
-    // This variable holds the offset into the file where the CPU should start execution
     u64 off_entry_point;
-    // Read the first 8 bytes of the file, containing the file entry point offset
     memcpy(&off_entry_point, buffer, sizeof(u64));
 
     DEBUG_PRINT("File offset entry point %llu\n", off_entry_point);
 
-    // Subtract 8 because the first 8 bytes aren't CPU instructions, and add 16 because the first 2 bytes in memory are reserved.
-    u64 addr_entry_point = (off_entry_point - 8) + 16;
-    DEBUG_PRINT("Address entry point %llu\n", addr_entry_point);
-    cpu_write(cpu, &addr_entry_point, 0x00, sizeof(u64));
-
-    u64 addr_stack = 0xff0000;
-    DEBUG_PRINT("Top of stack %llu\n", addr_stack);
-    cpu_write(cpu, &addr_stack, 0x08, sizeof(u64));
-
-    cpu_write(cpu, buffer + 8, 16, file_size - 8);
+    /* Add 8 to buffer before passing into this function to get rid of the first 8 bytes, which is the entry point of the program, 
+       which this function doesn't need */
+    bool result = load_program_into_cpu_memory(cpu, buffer + 8, file_size - 8, off_entry_point - 8);
 
     free(buffer);
     fclose(file);
 
-    return 0;
+    return result;
+}
+
+bool initialize_cpu_from_arguments(CPU* cpu, command_args_info* cmd_info) {
+    if(cmd_info->cpu_config_path != NULL) {
+        if(parse_cpu_config_file(cmd_info->cpu_config_path, cpu_get_address_bus(cpu), cpu_get_port_bus(cpu)) != true) {
+            return false;
+        }
+    }
+
+    if(cmd_info->program_path != NULL) {
+        if(load_file_into_cpu_memory(cpu, cmd_info->program_path) != true) {
+            return false;
+        } 
+    }
+
+    return true;
 }
 
 int main(int argc, char** argv) {
@@ -59,21 +85,20 @@ int main(int argc, char** argv) {
     address_bus* addr_bus = create_address_bus();
     port_bus* port_bus = port_bus_create();
     
-    memory* mem = memory_create(addr_bus);
-
     CPU* cpu = create_cpu(addr_bus, port_bus);
 
-    if(argc == 2) {
-        DEBUG_EXECUTE(printf("\n"));
+    command_args_info cmd_info;
+    parse_command_line_args(argc, argv, &cmd_info);
 
-        load_file_into_cpu_memory(cpu, argv[1]);
+    if(initialize_cpu_from_arguments(cpu, &cmd_info) != true) {
+        destroy_address_bus(addr_bus);
+        port_bus_destroy(port_bus);
+        destroy_cpu(cpu);
+        free_config_handles();
 
-        DEBUG_EXECUTE(printf("\n"));
+        return -1;
     }
-    else if(argc != 1) {
-        printf("Invalid use of command line arguments\n");
-        return 1;
-    }
+
     cpu_reset(cpu);
     
     DEBUG_EXECUTE(printf("\n"));
@@ -84,7 +109,9 @@ int main(int argc, char** argv) {
             DEBUG_EXECUTE(printf("\n"));
         }
     }
+    
     destroy_cpu(cpu);
-    memory_destroy(mem);
     destroy_address_bus(addr_bus);
+    port_bus_destroy(port_bus);
+    free_config_handles();
 }

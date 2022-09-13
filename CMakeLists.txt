@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
 set(SRC src)
-set(SRCS ${SRC}/main.c ${SRC}/cpu.c ${SRC}/address_bus.c ${SRC}/memory.c ${SRC}/port_bus.c)
+set(SRCS ${SRC}/main.c ${SRC}/cpu.c ${SRC}/address_bus.c ${SRC}/memory.c ${SRC}/port_bus.c ${SRC}/command_args.c ${SRC}/config_file_parse.c)
 
 set(INCLUDE include)
 

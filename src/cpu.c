@@ -184,6 +184,14 @@ void cpu_clock(CPU* cpu) {
     instruction_lookup[opcode].operation(cpu);
 }
 
+address_bus* cpu_get_address_bus(CPU* cpu) {
+    return cpu->addr_bus;
+}
+
+port_bus* cpu_get_port_bus(CPU* cpu) {
+    return cpu->port_bus;
+}
+
 bool is_halted(CPU* cpu) {
     return cpu->halted;
 }
